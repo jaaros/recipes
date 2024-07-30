@@ -1,16 +1,43 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Button, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
+import Anthropic from "@anthropic-ai/sdk";
+
+// Initialize the Anthropic client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 export default function ExploreRecipes() {
   const [preferences, setPreferences] = useState("");
   const [suggestedRecipe, setSuggestedRecipe] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const exploreRecipes = async () => {
-    // In a real app, you would make an API call to an AI service here
-    // For this example, we'll just simulate a response
-    setSuggestedRecipe(
-      `Here's a recipe based on your preferences: ${preferences}\n\nSimulated AI-generated recipe...`,
-    );
+    setIsLoading(true);
+    try {
+      const response = await anthropic.completions.create({
+        model: "claude-3-5-sonnet-20240620", // or whichever model you prefer
+        prompt: `Generate a recipe based on these preferences: ${preferences}.
+                 Please format the recipe with a title, ingredients list, and step-by-step instructions.`,
+        max_tokens_to_sample: 300,
+      });
+
+      setSuggestedRecipe(response.completion);
+    } catch (error) {
+      console.error("Error fetching recipe:", error);
+      setSuggestedRecipe(
+        "Sorry, there was an error generating the recipe. Please try again.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -21,8 +48,14 @@ export default function ExploreRecipes() {
         value={preferences}
         onChangeText={setPreferences}
       />
-      <Button title="Explore New Recipes" onPress={exploreRecipes} />
-      {suggestedRecipe ? (
+      <Button
+        title="Explore New Recipes"
+        onPress={exploreRecipes}
+        disabled={isLoading}
+      />
+      {isLoading ? (
+        <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />
+      ) : suggestedRecipe ? (
         <Text style={styles.suggestedRecipe}>{suggestedRecipe}</Text>
       ) : null}
     </View>
@@ -42,6 +75,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   suggestedRecipe: {
+    marginTop: 20,
+  },
+  loader: {
     marginTop: 20,
   },
 });
